@@ -1,0 +1,32 @@
+# The first command line argument is a unique ID:
+WORKER_ID=$1
+
+# Simple logger (for Bash 4 and later)
+log(){
+  printf '%(%Y-%m-%d %H:%M:%S)T [Worker#%s] %s\n' '-1' "$WORKER_ID" "$1" >>worker.log
+}
+
+# Wait for the queue
+while [ ! -e myqueue ]
+do
+  sleep 1
+done
+
+touch mylock
+exec 3<myqueue # FD3 <- queue
+exec 4<mylock  # FD4 <- lock
+
+while true
+do
+
+  # Read the next task from the queue
+  flock 4
+  IFS= read -r -u 3 task
+  flock -u 4
+  if [ -z "$task" ]
+  then
+    sleep 1
+    continue
+  fi
+  log "Processing task: ${task}"
+done
